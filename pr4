@@ -1,0 +1,391 @@
+from tkinter import Tk, Frame, Canvas, BOTH, Label, Entry
+from tkinter.ttk import Style, Button
+import math
+import copy
+import re
+
+student = 70205273
+class TowerOfHanoi:
+    def __init__(self, student):
+        # y первоначальное значение id студента без преобразований '70186274'
+        # y создаём нулевой шпиндель и реверс с 8 по 1
+        self.id_student = list(reversed(student + '0'))
+        self.spindles =  self.updating_disks()
+        self.counter = 0 # y начальное значение счетчика перемещений дисков
+        self.percentage_counter = None # y номер итерации от % выполнения
+        self.tmp_value = None
+
+    def updating_disks(self): # r обновляем список дисков
+        self.spindles = [self.create_disks(i, int(j)) for i, j in enumerate(self.id_student)]  # y список дисков на шпинделях
+        return self.spindles
+
+    @staticmethod
+    def create_disks(spindle_number, disk_number):
+        return [spindle_number * 10 + i for i in range(disk_number, 0, -1)]
+
+    def move_disk(self, source, target):
+        # r фактическое перемещение диска
+        if self.spindles[source]:
+            disk = self.spindles[source][-1]
+            if (not self.spindles[target] or self.spindles[target][
+                -1] > disk):
+                self.spindles[target].append(self.spindles[source].pop())
+                self.counter += 1 # y вкл счетчик итераций
+
+                # y если % от max количества итераций целое число
+                if self.counter == self.percentage_counter:
+                    # y Сохраняем копию списка дисков
+                    self.tmp_value = [copy.deepcopy(self.spindles), disk,
+                                      source, target]
+
+            else: # y Ошибка перемещения диска
+                logger.debug(f"Cannot move disk {disk} from spindle {source} to spindle {target}")
+
+    def hanoi_recursive(self, n, source, target, auxiliary):
+        # r алгоритм ханойских башен
+        if n == 0:
+            return
+        self.hanoi_recursive(n - 1, source, auxiliary, target)
+        self.move_disk(source, target)
+        self.hanoi_recursive(n - 1, auxiliary, target, source)
+
+    def source_disks(self, item): # r количество дисков у исходного шпинделя
+        return len(self.spindles[item])
+
+    def go(self): # r вывод конечного списка расположения дисков
+        # y Перемещения между шпинделями
+        moves = [
+            (1, 2, 3), (2, 1, 3), (3, 4, 2), (4, 3, 5),
+            (5, 6, 4), (6, 5, 7), (7, 8, 6), (8, 7, 6),
+            (7, 6, 8), (5, 6, 4), (6, 7, 5), (7, 8, 6),
+            (6, 5, 7), (5, 4, 6), (3, 4, 2), (4, 5, 3),
+            (5, 4, 6), (4, 5, 3), (5, 6, 4), (4, 3, 5),
+            (1, 3, 2), (3, 4, 2), (4, 5, 3), (3, 2, 4),
+            (2, 1, 3), (5, 4, 6), (6, 5, 7), (8, 6, 7),
+            (4, 3, 5), (5, 6, 4), (6, 7, 5), (7, 8, 6),
+            (6, 5, 7), (5, 4, 6), (3, 4, 2), (4, 5, 3),
+            (5, 6, 4), (4, 3, 5), (3, 2, 4), (2, 1, 3),
+            (6, 5, 7), (8, 6, 7), (5, 6, 4), (6, 7, 5),
+            (7, 8, 6), (6, 5, 7), (5, 4, 6), (4, 3, 5),
+            (3, 2, 4), (2, 1, 3), (8, 6, 7), (6, 5, 7),
+            (5, 4, 6), (4, 3, 5), (3, 2, 4), (2, 1, 3)
+        ]
+        temp_var = 0 # y  сохраняю количество дисков для дальнейшей переброски
+        # y  этих же дисков на другом шпинделе с другим количеством дисков
+
+        for i, move in enumerate(moves):
+            # y если вычисленная итерация, не None, то выходим из цикла
+            if self.percentage_counter and self.counter >= self.percentage_counter:
+                # logger.debug(f'Остановка на итерации {self.counter}')
+                break
+            # y на определенных позициях сохраняю количество дисков в temp_var
+            if i in (9, 14, 16, 20, 29, 34, 42):
+                temp_var = self.source_disks(move[0])
+            # y использую переменную temp_var для проброски нужного
+            #  количества дисков на другой шпиндель
+            if i in (10, 15, 17, 21, 30, 35, 43):
+                self.hanoi_recursive(temp_var, move[0], move[1], move[2])
+                continue
+            n = self.source_disks(move[0])
+            self.hanoi_recursive(n, move[0], move[1], move[2])
+        return self.spindles
+
+
+class CanvasForHanoiTowers(Frame):
+    # y начальные точки отсчета дисков
+    POINTS = [[], [770, 725], [675, 725], [580, 725], [485, 725], [390, 725],
+    [295, 725], [200, 725], [105, 725]]
+    # y цвета дисков
+    COLORS = ['#bd805d', '#F7D358', 'green', '#7730bf', 'yellow', '#b873ff',
+              '#ff664c', 'orange', 'pink', 'cyan']
+
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.student= '70205273'
+        # y создаём экземпляр класса TowerOfHanoi
+        self.tower = TowerOfHanoi(self.student)
+        # y задаю размеры окна canvas
+        self.canvas = Canvas(self, width=900, height=920)
+        # y запускаем шпиндели без дисков
+        self.create_canvas_base()
+        self.bottom_panel()
+        # y прорисовываем весь canvas
+        self.canvas.pack(fill=BOTH, expand=1)
+        # y сохраняем в кэше = self.student [max количество итераций, конечный
+        #  список
+        #  расположения дисков]
+        self.cache = {'70205273': ['49245', [[], [87, 86, 85, 84, 83, 82, 81,
+                                                  61, 58, 57, 56, 55, 54, 53,
+                                                  52, 51, 46, 45, 44, 43, 42,
+                                                  41, 32, 31, 27,
+                                                  26, 25, 24, 23, 22, 21, 14,
+                                                  13, 12, 11], [], [], [], [],
+                                             [], [], []]]}
+
+    def value_student(self):
+        # y получаем 8-ми значное значение из поля ввода
+        res = self.entry_8.get()
+        # y проверяем 8-ми значное значение
+        if self.validation_8_character_field(res):
+            self.tower = TowerOfHanoi(res)
+            self.student = res
+            # y деактивируем кнопки, кроме кнопки "начало"
+            self.activate_buttons(False)
+        else:
+            self.entry_8.delete(0, "end")
+            self.entry_8.insert(0, 'Ошибка')
+
+    def create_canvas_base(self):  # r создаём основание и 8 шпинделей
+        # y основание под шпиндели
+        self.canvas.create_rectangle(50, 740, 825, 725, fill=self.COLORS[0],
+                                     width=3, outline="#bd5000")
+        # y рисуем 8 вертикальных шпинделей
+        for i, num in enumerate(range(8, 0, -1)):
+            x1 = 100 + 95 * i
+            self.canvas.create_rectangle(x1, 725, x1 + 10, 450,
+                                         fill=self.COLORS[0], width=3,
+                                         outline="#bd5000")
+            # y указываем номера шпинделей
+            self.canvas.create_text(x1 + 2, 726, text=str(num), fill='black',
+                                    font='TkMenuFont, 9', anchor='nw')
+
+    def create_canvas_disks(self, data):   # r отрисовываем диски
+        for i, lst in  enumerate(data):
+            for el, disk in enumerate(lst):  # y перебираем диски на шпинделе
+                x0, y0 = self.POINTS[i][0], self.POINTS[i][1]
+                half = disk // 2  # r вычисляем половину диска
+                x0 -= half  # y вычисляем левую координату диска
+                color = self.COLORS[disk % 10]
+                # y отображаем диск
+                self.canvas.create_rectangle(x0, y0 - el * 10, x0 + disk,
+                                             y0 - (el + 1) * 10,
+                                             fill=color, width=1,
+                                             outline="#bd5000",
+                                             tags="my_disk")
+                # y отображаем номер диаметра диска
+                self.canvas.create_text(x0 + half - 5, y0 - 10 - el * 10,
+                                        text=disk, font='TkMenuFont, 7', anchor='nw',
+                                        fill='black', tags="my_number_disk")
+
+    def delete_disks(self): # r через теги удаляем только отрисованные диски
+        self.canvas.delete("my_disk")
+        self.canvas.delete("my_number_disk")
+        self.canvas.delete("my_add_disk")
+        self.canvas.delete("my_number_add_disk")
+
+    def resetting_results(self): # r сбрасываем списки дисков и итерации на
+        # r начальное  значение
+        self.tower.updating_disks()
+        self.tower.counter = 0
+
+    def drawing_single_disk(self, num_disk, source, target):
+        # r при нажатии кнопок ('П.1' ...'П.4') в результате которых из %
+        #  вычисляется "дробная" (165.8),а не целочисленная (165) итерация
+        #  прорисовываем один диск перемещаемый от одного шпинделя до другого
+        # y вычисляем какое значение больше и если что корректируем его
+        if source > target:
+            source, target = target, source
+        # y вычисляем координаты диска
+        difference = self.POINTS[source][0] - self.POINTS[target][0]
+        center = difference / 2 + self.POINTS[target][0]
+        half = num_disk // 2 # y вычисляем половину диска
+        x0 = center - half # y вычисляем левую координату диска
+        y0 = 430
+        x1 = x0 + num_disk # y вычисляем координаты правой части диска
+        y1 = y0 + 10
+        color = self.COLORS[num_disk % 10]
+        # y отображаем диск
+        self.canvas.create_rectangle(x0, y0, x1, y1,
+                                     fill=color, width=1,
+                                     outline="#bd5000",
+                                     tags="my_add_disk")
+        # y отображаем номер диаметра диска
+        self.canvas.create_text(x0 + half - 5, y0 - 1,
+                                text=num_disk, font='TkMenuFont, 7', anchor='nw',
+                                fill='black', tags="my_number_add_disk")
+
+    def validation_input_fields(self, input_str): # r валидация данных в полях
+        # r ввода
+        pattern = re.compile(r'^\d{1,2}$')
+        return bool(pattern.match(input_str))
+
+    def validation_8_character_field(self, input_8): #r валидация 8 чисел
+        return re.match(r"^\d{8}$", input_8) is not None
+
+    def button_start(self): # r отображаем начальную позицию дисков
+        self.delete_disks()
+        self.create_canvas_disks(self.tower.updating_disks())
+        # y если в поле "Начальное значение" указано "Ошибка"
+        if self.entry_8.get() == 'Ошибка':
+            self.entry_8.delete(0, "end")
+            self.entry_8.insert(0, self.student)
+        self.iteration['text']='Итерация: 0'
+        # y Активируем остальные кнопки после нажатия "Начало"
+        self.activate_buttons()
+        # y если кэш пустой то сохраняем конечный результат обсчёта дисков
+        #  и max количества итераций в кэше
+        if not self.cache.get(self.student):
+            tmp = self.tower.go()
+            self.cache[self.student] = [str(self.tower.counter), tmp]
+        self.resetting_results()
+
+    def button_end(self): # r отображаем конечную позицию дисков
+        self.delete_disks()
+        self.iteration['text'] = 'Итерация: ' + self.cache[self.student][0]
+        self.create_canvas_disks(self.cache[self.student][1])
+        self.resetting_results()
+
+    def percentage_run(self, number): # r обрабатываем процент выполнения
+        # r данных, полученных из полей ввода (entry_1, … entry_4)
+        self.delete_disks()
+        # y получаем заданный процент
+        if number == 1:
+            percentage = self.entry_1.get()
+        elif number == 2:
+            percentage = self.entry_2.get()
+        elif number == 3:
+            percentage = self.entry_3.get()
+        else:
+            percentage = self.entry_4.get()
+        # y осуществляем валидацию введенных данных как 1 или 2 числа
+        if not self.validation_input_fields(percentage):
+            return
+        # y берём max количество итераций из кэша
+        iter_go = self.cache[self.student][0]
+        # y получаем номер итерации от % выполнения и округляем его до
+        #  трёх знаков после точки
+        self.value_iter = round(int(iter_go) / 100 * float(percentage), 3)
+        # y проверяем целое число или вещественное
+        num = str(self.value_iter).split('.')
+        if num[1] == "0": # y целое число
+            # y Переводим номер итерации из float в int
+            self.value_iter = int(self.value_iter)
+            # y присваиваем значение (количество итераций от % выполнения)
+            self.tower.percentage_counter = self.value_iter
+            # y сбрасываем списки дисков и итерации на начальное значение
+            self.resetting_results()
+            # y запускаем процесс обсчета дисков
+            self.tower.go()
+            # y сохраняем текущее состояние дисков (в зависимости от %
+            #  выполнения)
+            tmp = self.tower.tmp_value[0]
+            # y прорисовываем диски
+            self.create_canvas_disks(tmp)
+            # y изменяем метку с надписью "Итерация"
+            self.iteration['text'] = 'Итерация: ' + str(self.value_iter)
+        else:
+            # y вещественное число округляем до целого в большую сторону
+            value_iter_changed = math.ceil(self.value_iter) # y 745.754 => 746
+            # y присваиваем значение (количество итераций от % выполнения)
+            self.tower.percentage_counter = value_iter_changed
+            # y сбрасываем списки дисков и итерации на начальное значение
+            self.resetting_results()
+            # y запускаем процесс обсчета дисков
+            self.tower.go()
+            # y сохраняем текущее состояние дисков (в зависимости от %
+            #  выполнения)
+            tmp_list_disks = self.tower.tmp_value[0]
+            # y Получаем номер диска для отображения его визуального
+            #  перемещения
+            tmp_disk = self.tower.tmp_value[1]
+            # y Находим диск по номеру и удаляем его из списка
+            for i in tmp_list_disks:
+                if i.count(tmp_disk):
+                    i.remove(tmp_disk)
+            # y прорисовываем диски
+            self.create_canvas_disks(tmp_list_disks)
+            # y получаем source, target
+            source = self.tower.tmp_value[2]
+            target = self.tower.tmp_value[3]
+            # y прорисовываем дополнительный "передвигаемый" диск
+            self.drawing_single_disk(tmp_disk, source, target)
+            # y изменяем метку с надписью "Итерация"
+            self.iteration['text'] = 'Итерация: ' + str(self.value_iter)
+
+        # y очищаем переменную self.tower.tmp_value
+        self.tower.tmp_value.clear()
+        logger.info(f'Сброс значений')
+
+    def bottom_panel(self): # r отображение всех 6 кнопок и 4 полей ввода
+        # y надпись "Итерация"
+        self.iteration = Label(text='Итерация: 0', font=("Arial", 14),
+                          foreground='#021859')
+        self.iteration.place(x=350, y=750)
+
+        # y кнопки
+        Style().configure('btn.TButton', background='#A0D9D3',
+                          relief='raise', font=("Arial", 14), borderwidth=3)
+        Style().map("btn.TButton",
+                    foreground=[('pressed', '#F8F8FF'), ('active', '#F8F8FF')],
+                    background=[('pressed', '!disabled', '#021F59'),
+                                ('active', '#52A8F2')])
+        start = Button(text='Начало',  style='btn.TButton', command=self.button_start)
+        start.place(x=140, y=775)
+        self.end = Button(text='Окончание', state='disabled',
+                          style='btn.TButton',
+                          command=self.button_end)
+        self.end.place(x=593, y=775)
+        self.p_1 = Button(text='П.1', width=5, state='disabled',
+                          style='btn.TButton', command=lambda: (
+                self.percentage_run(1)))
+        self.p_1.place(x=268, y=820)
+        self.p_2 = Button(text='П.2', width=5, state='disabled',
+                          style='btn.TButton',
+                          command=lambda: self.percentage_run(2))
+        self.p_2.place(x=348, y=820)
+        self.p_3 = Button(text='П.3', width=5, state='disabled',
+                          style='btn.TButton',
+                          command=lambda: self.percentage_run(3))
+        self.p_3.place(x=428, y=820)
+        self.p_4 = Button(text='П.4', width=5, state='disabled',
+                          style='btn.TButton', command=lambda: (
+                self.percentage_run(4)))
+        self.p_4.place(x=508, y=820)
+
+       # y ввод данных в 4 поля
+        self.entry_1 = Entry(relief='sunken', font=("Arial", 14),
+                             borderwidth=2, width=5, justify='center')
+        self.entry_1.place(x=270, y=779)
+        self.entry_1.insert(0, '15')
+        self.entry_2 = Entry(relief='sunken', font=("Arial", 14), borderwidth=2,
+                     width=5, justify='center')
+        self.entry_2.place(x=350, y=779)
+        self.entry_2.insert(0, '25')
+        self.entry_3 = Entry(relief='sunken', font=("Arial", 14), borderwidth=2,
+                       width=5, justify='center')
+        self.entry_3.place(x=430, y=779)
+        self.entry_3.insert(0, '49')
+        self.entry_4 = Entry(relief='sunken', font=("Arial", 14), borderwidth=2,
+                        width=5, justify='center')
+        self.entry_4.place(x=510, y=779)
+        self.entry_4.insert(0, '71')
+
+        # y надпись перед вводом 8-ми значного числа
+        self.enter_number = Label(text='Начальное значение: ',
+                                  font=("Arial", 14,'bold'), foreground='#021859')
+        self.enter_number.place(x=50, y=875)
+
+        # y ввод 8-ми значного номера
+        self.entry_8 = Entry(relief='sunken', font=("Arial", 14),
+                             borderwidth=2,
+                             width=10, justify='center')
+        self.entry_8.place(x=265, y=875)
+        self.entry_8.insert(0, self.student)
+
+        # y кнопка "Изменить"
+        self.button_change = Button(text='Изменить', style='btn.TButton',
+                                    command=lambda: self.value_student())
+        self.button_change.place(x=400, y=872)
+
+    def activate_buttons(self, activate=True):
+        # r Активируем или деактивируем кнопки
+        list_btn = [self.p_1, self.p_2, self.p_3, self.p_4, self.end]
+        for btn in list_btn:
+            btn.configure(state='normal' if activate else 'disabled')
+
+if __name__ == "__main__":
+    root = Tk()
+    root.title('Ханойские башни')
+    app = CanvasForHanoiTowers(root)
+    app.pack(fill=BOTH, expand=1)
+    app.mainloop()
