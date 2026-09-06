@@ -1,0 +1,318 @@
+import tkinter as tk
+import math
+from math import sqrt, log
+
+class Calculator:
+    def __init__(self, master):
+        self.master = master
+        master.title("Калькулятор")
+        self.memory = [0, 0, 0]  # список ячеек памяти
+        self.current_value = "0"  # Текущее отображаемое значение на дисплее
+        self.operation = None  # Текущая операция (+, -, *, /, и т.д.)
+        self.first_number = None  # Первое число в операции
+        self.is_engineering_mode = False  # Флаг для расширенного режима
+        self.history = []  # Список для истории операций
+        self.memory_buttons = [] # Добавили список для хранения кнопок памяти (M1, M2, M3)
+        self.engineering_buttons = [] #Список для остальных кнопок
+
+        # Дисплей
+        self.display = tk.Text(master, height=8, width=25, wrap=tk.WORD)  # Многострочный дисплей
+        self.display.grid(row=0, column=0, columnspan=5, padx=5, pady=5)
+        self.update_display()
+
+        # Кнопки
+        self.create_buttons()
+
+    def create_buttons(self):
+        """Создает кнопки калькулятора."""
+        # Цифры
+        buttons = [
+            '7', '8', '9', '/', 'x^y',
+            '4', '5', '6', '*', '√',
+            '1', '2', '3', '-', '+/-',
+            '0', '.', '=', '+', 'C'
+        ]
+        row = 1
+        col = 0
+        for button in buttons:
+            tk.Button(self.master, text=button, width=5, height=2,
+                      command=lambda btn=button: self.button_click(btn)).grid(row=row, column=col, padx=2, pady=2)
+            col += 1
+            if col > 4:
+                col = 0
+                row += 1
+
+        # Кнопки памяти MC, MR, MS, M+, M- для ЯЧЕЙКИ 1
+        memory_buttons_base = ['MC', 'MR', 'MS', 'M+', 'M-']
+        self.memory_buttons_base = []
+        row += 1
+        col = 0
+        for i, button in enumerate(memory_buttons_base):
+            button1 = tk.Button(self.master, text=button, width=5, height=2, command=lambda num=i: self.memory_engineering(num))  # Изменили команду
+            button1.grid(row=row, column=col, padx=2, pady=2)
+            col += 1
+            self.memory_buttons_base.append(button1)
+
+        # Кнопка режима
+        self.mode_button = tk.Button(self.master, text="Режим", width=8, height=2, command=self.toggle_mode)  # Увеличиваем ширину
+        self.mode_button.grid(row=row, column=col, padx=2, pady=2)
+
+    
+
+    def create_engineering_buttons(self):
+        """Создает кнопки инженерного режима."""
+
+        self.ln_button = tk.Button(self.master, text="ln", width=5, height=2, command=self.ln)
+        self.ln_button.grid(row=1, column=5, padx=2, pady=2)
+        self.engineering_buttons.append(self.ln_button)
+
+        self.x3_button = tk.Button(self.master, text="x³", width=5, height=2, command=self.x3)
+        self.x3_button.grid(row=2, column=5, padx=2, pady=2)
+        self.engineering_buttons.append(self.x3_button)
+
+        self.sin_button = tk.Button(self.master, text="sin", width=5, height=2, command=self.sin)
+        self.sin_button.grid(row=3, column=5, padx=2, pady=2)
+        self.engineering_buttons.append(self.sin_button)
+
+        self.dms_button = tk.Button(self.master, text="dms", width=5, height=2, command=self.dms)
+        self.dms_button.grid(row=4, column=5, padx=2, pady=2)
+        self.engineering_buttons.append(self.dms_button)
+
+        # Создаем кнопки памяти для инженерного режима (M1, M2, M3)
+        self.memory_labels = []  # Добавим список для хранения labels памяти
+        for i in range(3):
+            button = tk.Button(self.master, text=f"M{i + 1}", width=5, height=2,
+                               command=lambda num=i: self.memory_engineering(num))
+            button.grid(row=7, column=i, padx=2, pady=2)  # Размещаем ПОД кнопками памяти MC, MR, MS
+            self.engineering_buttons.append(button)
+            label = tk.Label(self.master, text="0", width=7, height=2)
+            label.grid(row=8, column=i, padx=2, pady=2)  # Размещаем ПОД кнопками M1, M2, M3
+            self.memory_labels.append(label)
+
+    def destroy_engineering_buttons(self):
+        """Удаляет кнопки инженерного режима."""
+        self.ln_button.destroy()
+        self.x3_button.destroy()
+        self.sin_button.destroy()
+        self.dms_button.destroy()
+
+        # Удаляем кнопки памяти
+        for button in self.engineering_buttons:
+            button.destroy()
+        self.engineering_buttons = []
+
+    def update_display(self):
+        """Обновляет дисплей."""
+        self.display.delete("1.0", tk.END)  # Очистить
+        # Форматируем историю для отображения, если включен инженерный режим
+        display_text = ""
+        if self.is_engineering_mode:  # Добавляем проверку режима
+            for item in self.history:
+                display_text += item + "\n"
+            for i, label in enumerate(self.memory_labels):  # Перебираем все label памяти
+                label.config(text=str(self.memory[i + 1]))  # Устанавливаем значение label
+        display_text += self.current_value  # Всегда отображаем текущее значение
+        self.display.insert("1.0", display_text)  # Вставляем текущее значение
+
+    def button_click(self, btn):
+        """Обработка нажатия кнопок (цифры, операторы, точка и т.д.)."""
+        if btn.isdigit():
+            if self.current_value == "0":
+                self.current_value = btn
+            else:
+                self.current_value += btn
+        elif btn == ".":
+            if "." not in self.current_value:
+                self.current_value += btn
+        elif btn == "+/-":
+            if self.current_value != "0":
+                if self.current_value.startswith("-"):
+                    self.current_value = self.current_value[1:]
+                else:
+                    self.current_value = "-" + self.current_value
+        elif btn in "+-*/x^y":
+            self.operation = btn
+            self.first_number = float(self.current_value)
+            self.current_value = "0"
+        elif btn == "=":
+            self.calculate()
+        elif btn == "C":
+            self.clear()
+        elif btn == "√":
+            self.square_root()
+       #Инженерный режим
+        elif btn == "M1":
+            self.memory_engineering(0)
+        elif btn == "M2":
+            self.memory_engineering(1)
+        elif btn == "M3":
+            self.memory_engineering(2)
+
+        self.update_display()
+
+    def calculate(self):
+        """Выполняет вычисления."""
+        if self.operation and self.first_number is not None:
+            try:
+                second_number = float(self.current_value)
+                if self.operation == "+":
+                    result = self.first_number + second_number
+                elif self.operation == "-":
+                    result = self.first_number - second_number
+                elif self.operation == "*":
+                    result = self.first_number * second_number
+                elif self.operation == "/":
+                    if second_number == 0:
+                        result = "Ошибка: Деление на ноль"
+                    else:
+                        result = self.first_number / second_number
+                elif self.operation == "x^y":
+                    result = self.first_number ** second_number
+                self.history.append(f"{self.first_number} {self.operation} {second_number} = {result}")  # Добавляем операцию в историю
+                if len(self.history) > 7:  # Обрезаем историю, если нужно
+                    self.history.pop(0)
+                self.current_value = str(result)
+                self.operation = None
+                self.first_number = None
+            except (ValueError, TypeError):
+                self.current_value = "Ошибка"
+                self.operation = None
+                self.first_number = None
+        else:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+    def clear(self):
+        """Очищает дисплей и сбрасывает состояние."""
+        self.current_value = "0"
+        self.operation = None
+        self.first_number = None
+        self.update_display()
+
+    def square_root(self):
+        """Вычисляет квадратный корень."""
+        try:
+            value = float(self.current_value)
+            if value < 0:
+                self.current_value = "Ошибка"
+            else:
+                result = sqrt(value)
+                self.history.append(f"√{value} = {result}")
+                if len(self.history) > 7:
+                    self.history.pop(0)
+                self.current_value = str(result)
+        except ValueError:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+
+    def memory_engineering(self, num):
+        """Обработка ячеек памяти в инженерном режиме."""
+        try:
+            current_num = float(self.current_value)
+        except ValueError:
+            current_num = 0  # Если введено не число, используем 0
+
+        # Обработка кнопок памяти (MC, MR, MS, M+, M-) ДЛЯ ЯЧЕЙКИ 1 (Обычный режим)
+        if 0 <= num <= 4:  # num 0-4 относятся к памяти, что в обычном режиме
+            memory_index = 0 #Все операции памяти относятся к ячейке 0
+            if num == 0:  # MC
+                self.memory[memory_index] = 0
+            elif num == 1:  # MR
+                self.current_value = str(self.memory[memory_index])
+            elif num == 2:  # MS
+                self.memory[memory_index] = current_num
+            elif num == 3:  # M+
+                self.memory[memory_index] += current_num
+            elif num == 4:  # M-
+                self.memory[memory_index] -= current_num
+
+        # Обработка кнопок памяти (M1, M2, M3) (Инженерный режим)
+        elif 5 <= num <= 7:  # num 5, 6, 7 относятся к памяти M1, M2, M3
+            memory_index = num - 5 + 1  # Вычисляем индекс ячейки памяти (1, 2, 3)  #+1 так как первая ячейка под номером 0
+            if self.is_engineering_mode:  # только в инженерном режиме
+                if num == 5:  # MS для M1, по сути MC
+                    self.memory[memory_index] = current_num
+                elif num == 6:  # MR для M1
+                    self.current_value = str(self.memory[memory_index])
+                elif num == 7:  # MS для M1
+                    self.memory[memory_index] = current_num
+
+        self.update_display()
+
+    def toggle_mode(self):
+        """Переключает между обычным и инженерным режимами."""
+        self.is_engineering_mode = not self.is_engineering_mode
+        if self.is_engineering_mode:
+            self.mode_button.config(text="Обычный")
+            self.create_engineering_buttons()  # Создаем кнопки инженерного режима
+            self.master.geometry("350x450")  # Увеличиваем размер окна
+            self.display.config(height=8, width=30)  # Увеличиваем размер дисплея
+
+        else:
+            self.mode_button.config(text="Режим")
+            self.destroy_engineering_buttons()  # Удаляем кнопки
+            self.master.geometry("350x400")  # Возвращаем исходный размер окна
+            self.display.config(height=8, width=25)  # Возвращаем исходный размер дисплея
+
+    def ln(self):
+        """Вычисляет натуральный логарифм."""
+        try:
+            value = float(self.current_value)
+            if value <= 0:
+                self.current_value = "Ошибка"
+            else:
+                result = log(value)
+                self.history.append(f"ln({value}) = {result}")
+                if len(self.history) > 7:
+                    self.history.pop(0)
+                self.current_value = str(result)
+        except ValueError:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+    def x3(self):
+        """Возводит в куб."""
+        try:
+            value = float(self.current_value)
+            result = value ** 3
+            self.history.append(f"{value}^3 = {result}")
+            if len(self.history) > 7:
+                self.history.pop(0)
+            self.current_value = str(result)
+        except ValueError:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+    def sin(self):
+        """Вычисляет синус."""
+        try:
+            value = float(self.current_value)
+            # Предполагаем, что ввод в градусах, переводим в радианы
+            result = math.sin(math.radians(value))
+            self.history.append(f"sin({value}) = {result}")
+            if len(self.history) > 7:
+                self.history.pop(0)
+            self.current_value = str(result)
+        except ValueError:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+    def dms(self):
+        """Переводит из десятичного вида в формат градусов, минут, секунд."""
+        try:
+            value = float(self.current_value)
+            degrees = int(value)
+            minutes = int((value - degrees) * 60)
+            seconds = (value - degrees - minutes / 60) * 3600
+            self.history.append(f"{value} = {degrees}°{minutes}'{seconds:.2f}''")
+            if len(self.history) > 7:
+                self.history.pop(0)
+            self.current_value = f"{degrees}°{minutes}'{seconds:.2f}''"
+        except ValueError:
+            self.current_value = "Ошибка"
+        self.update_display()
+
+root = tk.Tk()
+calculator = Calculator(root)
+root.mainloop()
