@@ -1,0 +1,52 @@
+import string
+import sys
+
+def process_text(input_filename="resource_1.txt", output_filename="result_1.txt", output_to_console=False):
+    """
+    Обрабатывает текстовый файл, подсчитывает частоту слов и выводит результат.
+    """
+
+    try:
+        with open(input_filename, 'r') as f:
+            text = f.read()
+    except FileNotFoundError:
+        print(f"Ошибка: Файл '{input_filename}' не найден.")
+        return
+
+    # Предобработка текста
+    text = text.lower()
+    text = text.translate(str.maketrans('', '', string.punctuation))  # Удаляем знаки препинания
+    words = text.split()
+
+    # Подсчет частоты слов
+    word_counts = {}
+    for word in words:
+        word_counts[word] = word_counts.get(word, 0) + 1
+
+    # Сортировка слов
+    sorted_words = sorted(word_counts.items(), key=lambda item: (-item[1], item[0]))  # Сортируем по убыванию количества и возрастанию слова
+
+    # Вывод результата
+    if output_to_console:
+        output_target = sys.stdout
+    else:
+        try:
+            output_target = open(output_filename, 'w')
+        except Exception as e:
+            print(f"Ошибка при открытии файла для записи: {e}")
+            return
+
+    with output_target:
+        for word, count in sorted_words:
+            output_target.write(f"{word} {count}\n")
+
+    if not output_to_console:
+        print(f"Результат записан в файл '{output_filename}'")
+
+
+if __name__ == "__main__":
+    output_to_console = False
+    if len(sys.argv) > 1 and sys.argv[1] == "-c":
+        output_to_console = True
+
+    process_text(output_to_console=output_to_console)
