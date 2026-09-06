@@ -1,0 +1,192 @@
+import tkinter as tk
+from tkinter import scrolledtext, filedialog
+import string
+
+# Словарь для хранения информации о клиентах: {имя: баланс}
+accounts = {}
+
+def get_account(name):
+    """Возвращает баланс клиента, или None, если клиента не существует."""
+    return accounts.get(name)
+
+def create_account(name):
+    """Создает новый счет для клиента с нулевым балансом."""
+    global accounts
+    if name not in accounts:
+        accounts[name] = 0
+        return True
+    return False
+
+def set_balance(name, balance):
+    """Устанавливает баланс клиента."""
+    global accounts
+    accounts[name] = balance
+
+
+def deposit(name, amount):
+    """Вносит сумму на счет клиента."""
+    global accounts
+    if get_account(name) is None:
+        create_account(name)
+
+    try:
+        amount = int(amount)
+        accounts[name] += amount
+        return f"{name} {accounts[name]}"
+    except ValueError:
+        return "ОШИБКА: Неверный формат суммы."
+
+def withdraw(name, amount):
+    """Снимает сумму со счета клиента."""
+    global accounts
+    if get_account(name) is None:
+        create_account(name)
+    try:
+        amount = int(amount)
+        accounts[name] -= amount
+        return f"{name} {accounts[name]}"
+    except ValueError:
+        return "ОШИБКА: Неверный формат суммы."
+
+def balance(name=None):
+    """Возвращает баланс клиента или балансы всех клиентов."""
+    global accounts
+    if name:
+        account = get_account(name)
+        if account is not None:
+            return f"{name} {account}"
+        else:
+            return "NO CLIENT"
+    else:
+        result = ""
+        for client, balance in accounts.items():
+            result += f"{client} {balance}\n"
+        return result.strip()  # Удаляем лишний перенос строки в конце
+
+def transfer(name1, name2, amount):
+    """Переводит сумму с одного счета на другой."""
+    global accounts
+    if get_account(name1) is None:
+        create_account(name1)
+    if get_account(name2) is None:
+        create_account(name2)
+    try:
+        amount = int(amount)
+        accounts[name1] -= amount
+        accounts[name2] += amount
+        return f"{name1} {accounts[name1]}\n{name2} {accounts[name2]}"
+    except ValueError:
+        return "ОШИБКА: Неверный формат суммы."
+
+def income(percentage):
+    """Начисляет проценты всем клиентам с положительным балансом."""
+    global accounts
+    try:
+        percentage = int(percentage)
+        result = ""
+        for client, balance in accounts.items():
+            if balance > 0:
+                interest = int(balance * percentage / 100)
+                accounts[client] += interest
+            result += f"{client} {accounts[client]}\n"
+        return result.strip()
+    except ValueError:
+        return "ОШИБКА: Неверный формат процента."
+
+
+class BankApp:
+    def __init__(self, master):
+        self.master = master
+        master.title("Bank Account Management")
+
+        # Поля ввода
+        self.input_label = tk.Label(master, text="Введите команду:")
+        self.input_label.pack()
+        self.input_text = scrolledtext.ScrolledText(master, height=10, width=50)
+        self.input_text.pack()
+
+        self.file_label = tk.Label(master, text="Введите имя файла:")
+        self.file_label.pack()
+        self.file_entry = tk.Entry(master, width=50)
+        self.file_entry.pack()
+
+        # Кнопки
+        self.calculate_button = tk.Button(master, text="Рассчитать", command=self.calculate)
+        self.calculate_button.pack()
+        self.load_button = tk.Button(master, text="Загрузить", command=self.load_file)
+        self.load_button.pack()
+
+        # Поле вывода
+        self.output_label = tk.Label(master, text="Результаты:")
+        self.output_label.pack()
+        self.output_text = scrolledtext.ScrolledText(master, height=10, width=50)
+        self.output_text.pack()
+
+        # Инициализация счета пользователя
+        create_account("Kolbasin")  
+        set_balance("Kolbasin", 70205273)  
+
+    def calculate(self):
+        """
+        Обрабатывает команды из self.input_text
+        """
+        self.parse_and_execute_commands()
+
+    def load_file(self):
+        """
+        Загружает содержимое файла в текстовое поле ввода.
+        """
+        filename = self.file_entry.get()
+        try:
+            with open(filename, "r") as f:
+                content = f.read()
+            self.input_text.delete("1.0", tk.END)  # Очищаем поле ввода
+            self.input_text.insert("1.0", content)  # Вставляем содержимое файла
+        except FileNotFoundError:
+            self.output_text.delete("1.0", tk.END)
+            self.output_text.insert("1.0", f"ОШИБКА: Файл '{filename}' не найден.")
+        except Exception as e:
+            self.output_text.delete("1.0", tk.END)
+            self.output_text.insert("1.0", f"ОШИБКА: {e}")
+
+    def parse_and_execute_commands(self):
+        """
+        Получает команды из текстового поля, выполняет их и выводит результаты.
+        """
+        commands = self.input_text.get("1.0", tk.END).splitlines()  # Получаем все строки из текстового поля
+        output = ""
+        for command in commands:
+            command = command.strip()  # Удаляем пробелы в начале и конце
+            if not command:  # Пропускаем пустые строки
+                continue
+
+            parts = command.split()
+            action = parts[0]
+            args = parts[1:]
+
+            try:
+                if action == "DEPOSIT":
+                    result = deposit(*args)
+                elif action == "WITHDRAW":
+                    result = withdraw(*args)
+                elif action == "BALANCE":
+                    result = balance(*args)
+                elif action == "TRANSFER":
+                    result = transfer(*args)
+                elif action == "INCOME":
+                    result = income(*args)
+                else:
+                    result = f"ОШИБКА: Неизвестная команда: {command}"
+
+            except Exception as e:
+                result = f"ОШИБКА: {command}"  # Общая обработка ошибок
+
+            output += f"{command}\n    {result}\n>>>\n"
+
+        self.output_text.delete("1.0", tk.END)  # Очищаем поле вывода
+        self.output_text.insert("1.0", output)  # Выводим результаты
+
+
+root = tk.Tk()
+app = BankApp(root)
+root.mainloop()
